@@ -77,11 +77,19 @@ export default function BudgetScreen() {
 
         <Card>
           <Muted>Discretionary leftover</Muted>
-          <MoneyText value={budget.discretionaryRemaining} color={theme.accent} size={36} />
+          <MoneyText value={budget.discretionaryAllowance} color={theme.accent} size={36} />
           <Muted>
             {formatMoney(budget.plannedIncome)} income − {formatMoney(budget.plannedFixed)} fixed
             costs
           </Muted>
+          <Row>
+            <Muted>Left to spend</Muted>
+            <MoneyText
+              value={budget.discretionaryRemaining}
+              size={18}
+              color={budget.discretionaryRemaining < 0 ? theme.danger : theme.text}
+            />
+          </Row>
           <ProgressBar
             value={spentRatio}
             color={spentRatio > 1 ? theme.danger : theme.accent}
