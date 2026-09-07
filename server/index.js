@@ -12,6 +12,9 @@ const {
   buildHealthPayload,
   rejectClientAccessToken,
 } = require('./plaidConfig');
+const { estimateValue, hasRentcastKey } = require('./valuation');
+
+const RENTCAST_API_KEY = process.env.RENTCAST_API_KEY || '';
 
 const PORT = Number(process.env.PORT || 8787);
 const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID || '';
@@ -72,13 +75,26 @@ app.get('/', (_req, res) => {
 });
 
 app.get('/health', (_req, res) => {
-  res.json(
-    buildHealthPayload({
+  res.json({
+    ...buildHealthPayload({
       clientId: PLAID_CLIENT_ID,
       secret: PLAID_SECRET,
       env: PLAID_ENV,
     }),
-  );
+    valuations: hasRentcastKey(RENTCAST_API_KEY) ? 'rentcast' : 'mock',
+  });
+});
+
+app.post('/valuations/estimate', async (req, res) => {
+  try {
+    const result = await estimateValue({
+      address: req.body?.address,
+      apiKey: RENTCAST_API_KEY,
+    });
+    res.status(result.status).json(result.body);
+  } catch (error) {
+    res.status(500).json({ error: error.message || 'valuation failed' });
+  }
 });
 
 app.post('/link/token/create', async (_req, res) => {

@@ -1,11 +1,12 @@
+import { helperBaseUrl, normalizeHelperUrl } from '@/src/lib/helper';
 import { createId } from '@/src/lib/ids';
 import type { Account, PlaidConnection, Transaction } from '@/src/types';
 
 export function normalizePlaidServerUrl(url?: string | null): string {
-  return url?.trim().replace(/\/$/, '') ?? '';
+  return normalizeHelperUrl(url);
 }
 
-export const PLAID_SERVER_URL = normalizePlaidServerUrl(process.env.EXPO_PUBLIC_PLAID_SERVER_URL);
+export const PLAID_SERVER_URL = helperBaseUrl();
 
 export function isPlaidServerConfigured(url: string = PLAID_SERVER_URL): boolean {
   return normalizePlaidServerUrl(url).length > 0;

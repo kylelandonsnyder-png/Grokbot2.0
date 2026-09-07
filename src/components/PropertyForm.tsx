@@ -2,10 +2,12 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 
-import { Chip, Field, PrimaryButton, Screen } from '@/src/components/ui';
+import { Chip, Field, Muted, PrimaryButton, Screen } from '@/src/components/ui';
 import { createId } from '@/src/lib/ids';
+import { formatMoney } from '@/src/lib/money';
+import { fetchPropertyValuation } from '@/src/lib/valuation';
 import { useAppStore } from '@/src/store/appStore';
-import type { Property } from '@/src/types';
+import type { Property, PropertyValuation } from '@/src/types';
 
 export function PropertyForm({ initial }: { initial?: Property }) {
   const upsertProperty = useAppStore((state) => state.upsertProperty);
@@ -24,6 +26,8 @@ export function PropertyForm({ initial }: { initial?: Property }) {
   );
   const [purchasePrice, setPurchasePrice] = useState(String(initial?.purchasePrice ?? ''));
   const [units, setUnits] = useState(String(initial?.units ?? '1'));
+  const [estimate, setEstimate] = useState<PropertyValuation | undefined>(initial?.lastEstimate);
+  const [lookingUp, setLookingUp] = useState(false);
 
   function save() {
     const parsedValue = Number(marketValue);
@@ -47,15 +51,53 @@ export function PropertyForm({ initial }: { initial?: Property }) {
       tenants: initial?.tenants ?? [],
       purchaseDate: initial?.purchaseDate,
       mortgageRate: initial?.mortgageRate,
+      lastEstimate: estimate,
     });
     router.back();
+  }
+
+  async function lookupEstimate() {
+    setLookingUp(true);
+    try {
+      const next = await fetchPropertyValuation(address);
+      setEstimate(next);
+    } catch (error) {
+      Alert.alert('Lookup failed', error instanceof Error ? error.message : 'Unknown error');
+    } finally {
+      setLookingUp(false);
+    }
   }
 
   return (
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 12, paddingBottom: 40 }}>
         <Field label="Name" value={name} onChangeText={setName} />
-        <Field label="Address" value={address} onChangeText={setAddress} />
+        <Field
+          label="Address"
+          value={address}
+          onChangeText={setAddress}
+          placeholder="Street, City, State, ZIP"
+        />
+        <PrimaryButton
+          label={lookingUp ? 'Looking up…' : 'Look up estimated value'}
+          onPress={lookupEstimate}
+          disabled={lookingUp}
+        />
+        {estimate ? (
+          <Muted>
+            {estimate.source}: {formatMoney(estimate.estimatedValue)}
+            {estimate.rangeLow && estimate.rangeHigh
+              ? ` (${formatMoney(estimate.rangeLow)}–${formatMoney(estimate.rangeHigh)})`
+              : ''}
+            {estimate.mock ? ' · mock (no RentCast key)' : ''}
+          </Muted>
+        ) : null}
+        {estimate ? (
+          <PrimaryButton
+            label="Use estimate as market value"
+            onPress={() => setMarketValue(String(estimate.estimatedValue))}
+          />
+        ) : null}
         <View style={{ flexDirection: 'row', gap: 8 }}>
           <Chip label="Rental" active={occupancy === 'rental'} onPress={() => setOccupancy('rental')} />
           <Chip

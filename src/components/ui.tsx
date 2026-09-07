@@ -158,12 +158,16 @@ export function Field({
   onChangeText,
   keyboardType = 'default',
   placeholder,
+  secureTextEntry,
+  autoCapitalize = 'sentences',
 }: {
   label: string;
   value: string;
   onChangeText: (text: string) => void;
   keyboardType?: 'default' | 'numeric' | 'decimal-pad' | 'email-address' | 'phone-pad';
   placeholder?: string;
+  secureTextEntry?: boolean;
+  autoCapitalize?: 'none' | 'sentences' | 'words' | 'characters';
 }) {
   const theme = useTheme();
   return (
@@ -175,6 +179,9 @@ export function Field({
         keyboardType={keyboardType}
         placeholder={placeholder}
         placeholderTextColor={theme.muted}
+        secureTextEntry={secureTextEntry}
+        autoCapitalize={autoCapitalize}
+        autoCorrect={!secureTextEntry}
         style={[
           styles.input,
           { color: theme.text, backgroundColor: theme.surface, borderColor: theme.border },
@@ -188,18 +195,21 @@ export function PrimaryButton({
   label,
   onPress,
   icon,
+  disabled,
 }: {
   label: string;
   onPress: () => void;
   icon?: keyof typeof Ionicons.glyphMap;
+  disabled?: boolean;
 }) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.button,
-        { backgroundColor: theme.accent, opacity: pressed ? 0.85 : 1 },
+        { backgroundColor: theme.accent, opacity: disabled ? 0.45 : pressed ? 0.85 : 1 },
       ]}>
       {icon ? <Ionicons name={icon} size={18} color={buttonLabelColor(theme)} /> : null}
       <Text style={[styles.buttonLabel, { color: buttonLabelColor(theme) }]}>{label}</Text>

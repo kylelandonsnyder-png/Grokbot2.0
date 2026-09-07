@@ -4,7 +4,7 @@ Personal finance app for **web, iOS, and Android**. Built with **Expo SDK 57 / R
 
 Grokbot plans a month as **income − fixed costs → discretionary leftover**, shows categorized spending, tracks net worth (cash, investments, retirement, other debts), and keeps a light real-estate portfolio with vacancy, tenants, profit, ROI, and monthly return.
 
-Going from this demo to a public URL and store binaries? Follow **[docs/LAUNCH.md](docs/LAUNCH.md)** (accounts, EAS, TestFlight, Play internal, Plaid sandbox → production, privacy).
+Launch order: **Auth → Valuations → EAS / web → Plaid later**. Full checklist: **[docs/LAUNCH.md](docs/LAUNCH.md)**.
 
 Stable package IDs (also in `app.json`):
 
@@ -14,15 +14,16 @@ Stable package IDs (also in `app.json`):
 ## What v1 includes
 
 - Four tabs: **Budget**, **Transactions**, **Overview**, **Real Estate**
-- **Local-only data** on the device (Zustand + AsyncStorage). No cloud auth or sync.
-- Plaid **sandbox** path with a tiny helper server for token exchange, plus **mock/fixture mode** when Plaid env is missing
+- **Accounts:** email/password signup + login (Supabase). Google/Apple optional. Session restore. Log out in Settings. Or continue as a local demo.
+- **Cloud sync** of budget / transactions / properties / accounts for signed-in users (Postgres + RLS), with an AsyncStorage cache
+- **RentCast** address valuations on Real Estate (mock if the API key is missing). Manual market-value override always allowed
+- Plaid helper is in the repo but **later** — fixtures work without it
 - Merchant rules, editable categories, transfers excluded from spend
-- Optional Expo Notifications for new transactions (the app runs fine if push is not configured)
 - EAS Build profiles (`development` / `preview` / `production`) and a static web export
 
 ## Run the app (local demo)
 
-No secrets required. Leave `.env` missing, or copy `.env.example` and keep `EXPO_PUBLIC_PLAID_SERVER_URL` empty.
+No secrets required. Leave `.env` missing. You stay on **local demo** + mock valuations.
 
 ```bash
 npm install
@@ -61,17 +62,42 @@ Copy `.env.example` to `.env`. **Do not commit secrets.**
 
 | Variable | Where | Purpose |
 | --- | --- | --- |
-| `EXPO_PUBLIC_PLAID_SERVER_URL` | Expo app | Helper base URL. **Leave empty** to stay in demo/fixture mode. |
-| `PLAID_CLIENT_ID` | Helper server only | Plaid dashboard client id |
-| `PLAID_SECRET` | Helper server only | Sandbox secret first — never in the Expo app |
-| `PLAID_ENV` | Helper server only | `sandbox` (default) or `production`. Anything else falls back to sandbox. |
+| `EXPO_PUBLIC_SUPABASE_URL` | Expo app | Supabase project URL. Empty = no login gate. |
+| `EXPO_PUBLIC_SUPABASE_ANON_KEY` | Expo app | Anon public key only. Never the service role. |
+| `EXPO_PUBLIC_SITE_URL` | Expo app | Public web origin for OAuth redirects. |
+| `EXPO_PUBLIC_HELPER_URL` | Expo app | Helper for RentCast (and later Plaid). Empty = mock valuations. |
+| `EXPO_PUBLIC_PLAID_SERVER_URL` | Expo app | Alias for the helper URL. |
+| `RENTCAST_API_KEY` | Helper server only | [RentCast](https://www.rentcast.io/api) AVM key. |
+| `PLAID_CLIENT_ID` / `PLAID_SECRET` / `PLAID_ENV` | Helper server only | **Later.** Sandbox default. |
 | `PORT` | Helper server | Defaults to `8787` |
 
 Restart Expo after changing any `EXPO_PUBLIC_*` value.
 
 On a physical phone, `localhost` is the phone itself. Use your computer’s LAN IP, e.g. `http://192.168.1.20:8787`. Android emulator often needs `http://10.0.2.2:8787`.
 
-## Plaid (sandbox is the default path out of fixtures)
+## Auth (Supabase)
+
+1. Create a project at [supabase.com](https://supabase.com).
+2. Put `EXPO_PUBLIC_SUPABASE_URL` and `EXPO_PUBLIC_SUPABASE_ANON_KEY` in `.env`.
+3. Run [`supabase/migrations/20260907120000_init.sql`](supabase/migrations/20260907120000_init.sql) in the SQL editor.
+4. Restart Expo. Sign up, log in, or continue without an account.
+5. Optional: enable Google / Apple in Authentication → Providers and add redirect URLs (`http://localhost:8081`, `grokbot://`, `EXPO_PUBLIC_SITE_URL`).
+
+Signed-in data syncs to Postgres under `auth.uid()`. New accounts start empty (categories only). See [supabase/README.md](supabase/README.md).
+
+## Property valuations (RentCast)
+
+Zillow does not offer a simple public Zestimate API. We use **RentCast** (`/v1/avm/value`). A Zillow partner / Bridge feed is a future option — do not scrape Zillow.
+
+1. Get a key at [rentcast.io/api](https://www.rentcast.io/api).
+2. Set `RENTCAST_API_KEY` on the helper and `EXPO_PUBLIC_HELPER_URL=http://localhost:8787`.
+3. `npm run server`, then Real Estate → property → **Refresh estimate**.
+
+No key → labeled mock estimate. Market value remains a manual field; **Use estimate as market value** copies the AVM in.
+
+## Plaid (later)
+
+Bank linking is not required to launch. Sandbox helper notes:
 
 1. Create a [Plaid](https://dashboard.plaid.com/) account and **sandbox** keys.
 2. Put `PLAID_CLIENT_ID` and `PLAID_SECRET` in `.env`. Leave `PLAID_ENV=sandbox`.
@@ -176,12 +202,13 @@ Expo Notifications is wired for optional local alerts after a sync adds transact
 ## Project layout
 
 ```
-app/                 Expo Router screens and tabs
-src/lib/             Budget, net worth, retirement, real-estate math
-src/store/           Local Zustand store
+app/                 Expo Router screens (tabs, login, signup)
+src/lib/             Budget, sync, valuations, auth helpers
+src/store/           Local cache + auth session
 src/data/fixtures.ts Demo institutions and activity
-server/              Plaid token-exchange helper (sandbox default)
-docs/LAUNCH.md       Store / EAS / web / Plaid / privacy checklist
+server/              Helper: RentCast now, Plaid later
+supabase/            SQL migrations + setup notes
+docs/LAUNCH.md       Auth → valuations → EAS/web → Plaid later
 eas.json             development / preview / production builds
 ```
 
