@@ -1,0 +1,10 @@
+[build]
+  command = "npx expo export --platform web"
+  publish = "dist"
+
+# Expo Router static HTML is emitted into dist/. Fall back to the
+# exported index for client-side navigations that miss a file.
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200

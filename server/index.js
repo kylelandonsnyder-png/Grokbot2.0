@@ -6,10 +6,17 @@ const express = require('express');
 const cors = require('cors');
 require('dotenv').config({ path: path.join(__dirname, '..', '.env') });
 
+const {
+  resolvePlaidEnv,
+  hasPlaidSecrets,
+  buildHealthPayload,
+  rejectClientAccessToken,
+} = require('./plaidConfig');
+
 const PORT = Number(process.env.PORT || 8787);
 const PLAID_CLIENT_ID = process.env.PLAID_CLIENT_ID || '';
 const PLAID_SECRET = process.env.PLAID_SECRET || '';
-const PLAID_ENV = process.env.PLAID_ENV || 'sandbox';
+const PLAID_ENV = resolvePlaidEnv(process.env.PLAID_ENV);
 const DATA_DIR = path.join(__dirname, 'data');
 const ITEMS_PATH = path.join(DATA_DIR, 'items.json');
 
@@ -17,8 +24,8 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
-function hasPlaidSecrets() {
-  return Boolean(PLAID_CLIENT_ID && PLAID_SECRET);
+function secretsReady() {
+  return hasPlaidSecrets(PLAID_CLIENT_ID, PLAID_SECRET);
 }
 
 function readItems() {
@@ -35,6 +42,9 @@ function writeItems(items) {
 }
 
 function getPlaidClient() {
+  if (!secretsReady()) {
+    throw new Error('Plaid secrets missing');
+  }
   const { Configuration, PlaidApi, PlaidEnvironments } = require('plaid');
   const env = PlaidEnvironments[PLAID_ENV] || PlaidEnvironments.sandbox;
   return new PlaidApi(
@@ -50,18 +60,30 @@ function getPlaidClient() {
   );
 }
 
-app.get('/health', (_req, res) => {
+app.get('/', (_req, res) => {
   res.json({
-    ok: hasPlaidSecrets(),
-    mock: !hasPlaidSecrets(),
+    name: 'Grokbot Plaid helper',
+    health: '/health',
+    link: '/link',
+    defaultEnv: 'sandbox',
     env: PLAID_ENV,
-    reason: hasPlaidSecrets() ? undefined : 'PLAID_CLIENT_ID / PLAID_SECRET missing',
+    mock: !secretsReady(),
   });
 });
 
+app.get('/health', (_req, res) => {
+  res.json(
+    buildHealthPayload({
+      clientId: PLAID_CLIENT_ID,
+      secret: PLAID_SECRET,
+      env: PLAID_ENV,
+    }),
+  );
+});
+
 app.post('/link/token/create', async (_req, res) => {
-  if (!hasPlaidSecrets()) {
-    return res.status(503).json({ error: 'Plaid secrets missing', mock: true });
+  if (!secretsReady()) {
+    return res.status(503).json({ error: 'Plaid secrets missing', mock: true, env: PLAID_ENV });
   }
   try {
     const client = getPlaidClient();
@@ -79,10 +101,12 @@ app.post('/link/token/create', async (_req, res) => {
 });
 
 app.get('/link', async (_req, res) => {
-  if (!hasPlaidSecrets()) {
+  if (!secretsReady()) {
     return res
       .status(503)
-      .send('<p>Plaid is not configured. Add PLAID_CLIENT_ID and PLAID_SECRET to .env</p>');
+      .send(
+        '<p>Demo / fixture mode. Add PLAID_CLIENT_ID and PLAID_SECRET to .env to enable Plaid sandbox Link. Access tokens stay on this server.</p>',
+      );
   }
   try {
     const client = getPlaidClient();
@@ -101,8 +125,10 @@ app.get('/link', async (_req, res) => {
 });
 
 app.post('/item/public_token/exchange', async (req, res) => {
-  if (!hasPlaidSecrets()) {
-    return res.status(503).json({ error: 'Plaid secrets missing', mock: true });
+  const leaked = rejectClientAccessToken(req.body);
+  if (leaked) return res.status(400).json(leaked);
+  if (!secretsReady()) {
+    return res.status(503).json({ error: 'Plaid secrets missing', mock: true, env: PLAID_ENV });
   }
   const publicToken = req.body?.public_token;
   if (!publicToken) return res.status(400).json({ error: 'public_token required' });
@@ -122,8 +148,8 @@ app.post('/item/public_token/exchange', async (req, res) => {
 });
 
 app.get('/items', (_req, res) => {
-  if (!hasPlaidSecrets()) {
-    return res.status(503).json({ error: 'Plaid secrets missing', mock: true, items: [] });
+  if (!secretsReady()) {
+    return res.status(503).json({ error: 'Plaid secrets missing', mock: true, items: [], env: PLAID_ENV });
   }
   const items = readItems();
   res.json({
@@ -135,8 +161,8 @@ app.get('/items', (_req, res) => {
 });
 
 app.get('/snapshot', async (req, res) => {
-  if (!hasPlaidSecrets()) {
-    return res.status(503).json({ error: 'Plaid secrets missing', mock: true });
+  if (!secretsReady()) {
+    return res.status(503).json({ error: 'Plaid secrets missing', mock: true, env: PLAID_ENV });
   }
   const itemId = String(req.query.item_id || '');
   const items = readItems();
@@ -270,7 +296,7 @@ function linkPage(linkToken) {
   <body>
     <main>
       <h1>Connect an account</h1>
-      <p>Plaid Link sandbox. The public token is exchanged on this server. The access token is stored only in <code>server/data/items.json</code>.</p>
+      <p>Plaid Link (${PLAID_ENV}). The public token is exchanged on this server. The access token is stored only in <code>server/data/items.json</code> and is never returned to the app.</p>
       <button id="link">Open Plaid Link</button>
       <p id="status"></p>
     </main>
@@ -301,8 +327,15 @@ function linkPage(linkToken) {
 }
 
 app.listen(PORT, () => {
+  const health = buildHealthPayload({
+    clientId: PLAID_CLIENT_ID,
+    secret: PLAID_SECRET,
+    env: PLAID_ENV,
+  });
   console.log(`Grokbot Plaid helper on http://localhost:${PORT}`);
-  if (!hasPlaidSecrets()) {
-    console.log('Mock mode: set PLAID_CLIENT_ID and PLAID_SECRET to enable Link.');
+  console.log(`Mode: ${health.mode} (default env: sandbox, resolved env: ${health.env})`);
+  console.log('Access tokens stay in server/data/items.json — never sent to the Expo client.');
+  if (health.mock) {
+    console.log('Fixture/mock mode: set PLAID_CLIENT_ID and PLAID_SECRET to enable sandbox Link.');
   }
 });

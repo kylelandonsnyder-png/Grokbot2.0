@@ -1,17 +1,41 @@
 import { Link } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, Switch, View } from 'react-native';
 
-import { Card, GhostButton, Heading, Muted, PrimaryButton, Row, Screen } from '@/src/components/ui';
+import { Card, Chip, GhostButton, Heading, Muted, PrimaryButton, Row, Screen } from '@/src/components/ui';
 import { configureNotifications } from '@/src/lib/notifications';
-import { fetchPlaidHealth, isPlaidServerConfigured } from '@/src/lib/plaid';
+import {
+  countLivePlaidItems,
+  describeConnectionStatus,
+  fetchPlaidHealth,
+  isPlaidServerConfigured,
+  type PlaidHealth,
+} from '@/src/lib/plaid';
 import { useAppStore } from '@/src/store/appStore';
 
 export default function SettingsScreen() {
   const enabled = useAppStore((state) => state.settings.notificationsEnabled);
   const setNotificationsEnabled = useAppStore((state) => state.setNotificationsEnabled);
   const resetToDemo = useAppStore((state) => state.resetToDemo);
-  const [health, setHealth] = useState<string | null>(null);
+  const plaidItems = useAppStore((state) => state.plaidItems);
+  const [health, setHealth] = useState<PlaidHealth | null>(null);
+  const [healthNote, setHealthNote] = useState<string | null>(null);
+
+  const liveCount = countLivePlaidItems(plaidItems);
+  const status = useMemo(
+    () =>
+      describeConnectionStatus({
+        serverConfigured: isPlaidServerConfigured(),
+        health,
+        liveItemCount: liveCount,
+      }),
+    [health, liveCount],
+  );
+
+  useEffect(() => {
+    if (!isPlaidServerConfigured()) return;
+    void fetchPlaidHealth().then(setHealth);
+  }, []);
 
   async function toggleNotifications(next: boolean) {
     if (!next) {
@@ -32,10 +56,11 @@ export default function SettingsScreen() {
 
   async function checkPlaid() {
     const result = await fetchPlaidHealth();
-    setHealth(
+    setHealth(result);
+    setHealthNote(
       result.ok
-        ? `Live Plaid server (${result.env ?? 'sandbox'})`
-        : `Mock mode — ${result.reason ?? 'using on-device fixtures'}`,
+        ? `Helper live · ${result.env ?? 'sandbox'} · tokens server-side only`
+        : `Still demo-safe — ${result.reason ?? 'using on-device fixtures'}`,
     );
   }
 
@@ -43,7 +68,11 @@ export default function SettingsScreen() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
         <Card>
-          <Heading>Data</Heading>
+          <Row>
+            <Heading>Data</Heading>
+            <Chip label={status.title} active={status.mode === 'linked' || status.mode === 'sandbox'} />
+          </Row>
+          <Muted>{status.detail}</Muted>
           <Muted>
             v1 is local-only. Accounts, budgets, and properties stay on this device via AsyncStorage.
             There is no cloud login or sync.
@@ -60,15 +89,17 @@ export default function SettingsScreen() {
         <Card>
           <Heading>Banks & brokerages</Heading>
           <Muted>
-            {isPlaidServerConfigured()
-              ? 'A Plaid helper server URL is set. Access tokens never live in the app.'
-              : 'Plaid env is not set, so the UI runs on sandbox-shaped fixtures.'}
+            {status.mode === 'linked'
+              ? 'Linked — you imported a live Plaid item. Access tokens never live in the app.'
+              : status.mode === 'sandbox' || status.mode === 'production'
+                ? `${status.title}. Open Settings → Manage connections to run Link, then Import from helper.`
+                : 'Demo mode vs Linked: right now you are on fixtures. Set sandbox keys + EXPO_PUBLIC_PLAID_SERVER_URL only when you want real Link.'}
           </Muted>
           <Link href="/connect">
             <Muted style={{ textDecorationLine: 'underline' }}>Manage connections</Muted>
           </Link>
           <PrimaryButton label="Check Plaid status" onPress={checkPlaid} />
-          {health ? <Muted>{health}</Muted> : null}
+          {healthNote ? <Muted>{healthNote}</Muted> : null}
         </Card>
 
         <Card>

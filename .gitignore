@@ -41,6 +41,13 @@ yarn-error.*
 server/data/*.json
 server/node_modules/
 
+# Native credentials / store keys (never commit)
+credentials.json
+google-services.json
+GoogleService-Info.plist
+*.keystore
+eas-build-*.log
+
 # typescript
 *.tsbuildinfo
 

@@ -1,17 +1,20 @@
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Alert, ScrollView, View } from 'react-native';
 
-import { Card, Heading, Muted, PrimaryButton, Row, Screen } from '@/src/components/ui';
+import { Card, Chip, Heading, Muted, PrimaryButton, Row, Screen } from '@/src/components/ui';
 import { buildDemoTransactions } from '@/src/data/fixtures';
 import { createId } from '@/src/lib/ids';
 import {
   buildMockConnection,
+  countLivePlaidItems,
+  describeConnectionStatus,
   fetchPlaidHealth,
   fetchPlaidItems,
   fetchPlaidSnapshot,
   isPlaidServerConfigured,
   plaidLinkUrl,
+  type PlaidHealth,
 } from '@/src/lib/plaid';
 import { useAppStore } from '@/src/store/appStore';
 
@@ -20,19 +23,41 @@ export default function ConnectScreen() {
   const connectMockInstitution = useAppStore((state) => state.connectMockInstitution);
   const ingestPlaidSnapshot = useAppStore((state) => state.ingestPlaidSnapshot);
   const [busy, setBusy] = useState(false);
+  const [health, setHealth] = useState<PlaidHealth | null>(null);
+
+  const liveCount = countLivePlaidItems(items);
+  const status = useMemo(
+    () =>
+      describeConnectionStatus({
+        serverConfigured: isPlaidServerConfigured(),
+        health,
+        liveItemCount: liveCount,
+      }),
+    [health, liveCount],
+  );
+
+  useEffect(() => {
+    if (!isPlaidServerConfigured()) return;
+    void fetchPlaidHealth().then(setHealth);
+  }, []);
 
   async function connectLive() {
     if (!isPlaidServerConfigured()) {
-      Alert.alert('Plaid server missing', 'Set EXPO_PUBLIC_PLAID_SERVER_URL or use mock mode.');
+      Alert.alert(
+        'Demo mode',
+        'No helper URL. Set EXPO_PUBLIC_PLAID_SERVER_URL after you start the sandbox server, or tap Use mock sandbox.',
+      );
       return;
     }
     setBusy(true);
     try {
-      const health = await fetchPlaidHealth();
-      if (!health.ok || health.mock) {
+      const nextHealth = await fetchPlaidHealth();
+      setHealth(nextHealth);
+      if (!nextHealth.ok || nextHealth.mock) {
         Alert.alert(
-          'Sandbox not ready',
-          health.reason ?? 'The helper server is in mock mode. Using fixtures instead.',
+          'Still in demo mode',
+          nextHealth.reason ??
+            'The helper has no Plaid secrets yet. Using on-device fixtures. Add sandbox keys to .env and restart the server to Link.',
         );
         await connectMock();
         return;
@@ -68,23 +93,23 @@ export default function ConnectScreen() {
         plaidTransactionId: txn.id,
       })),
     });
-    Alert.alert('Connected', 'Mock sandbox accounts were added on-device.');
+    Alert.alert('Connected', 'Mock sandbox accounts were added on-device. This is still Demo mode, not Linked.');
   }
 
   async function importFromServer() {
     if (!isPlaidServerConfigured()) return;
     try {
-      const items = await fetchPlaidItems();
-      if (items.length === 0) {
+      const serverItems = await fetchPlaidItems();
+      if (serverItems.length === 0) {
         Alert.alert('No server items', 'Complete Link in the browser, then tap Import from helper.');
         return;
       }
       let added = 0;
-      for (const item of items) {
+      for (const item of serverItems) {
         const snapshot = await fetchPlaidSnapshot(item.itemId);
         added += await ingestPlaidSnapshot(snapshot);
       }
-      Alert.alert('Imported', `Pulled ${items.length} item(s). ${added} new transaction(s).`);
+      Alert.alert('Linked', `Pulled ${serverItems.length} item(s). ${added} new transaction(s). Access tokens stayed on the server.`);
     } catch (error) {
       Alert.alert('Import failed', error instanceof Error ? error.message : 'Unknown error');
     }
@@ -94,10 +119,18 @@ export default function ConnectScreen() {
     <Screen>
       <ScrollView contentContainerStyle={{ padding: 20, gap: 16 }}>
         <Card>
-          <Heading>Plaid</Heading>
+          <Row>
+            <Heading>Plaid</Heading>
+            <Chip
+              label={status.title}
+              active={status.mode === 'linked' || status.mode === 'sandbox'}
+            />
+          </Row>
+          <Muted>{status.detail}</Muted>
           <Muted>
             Link depository, credit, loan, and investment accounts. Token exchange happens on the
-            local helper server so access tokens never sit in the client.
+            local helper so access tokens never sit in the client. Sandbox is the default once keys
+            exist; fixtures keep working if env is missing.
           </Muted>
           <PrimaryButton
             label={busy ? 'Opening…' : 'Open Plaid Link'}
@@ -110,14 +143,14 @@ export default function ConnectScreen() {
         <Card>
           <Heading>Connected</Heading>
           {items.length === 0 ? (
-            <Muted>Nothing linked yet.</Muted>
+            <Muted>Nothing linked yet. Demo fixtures still appear on Budget / Transactions.</Muted>
           ) : (
             items.map((item) => (
               <Row key={item.id}>
                 <View style={{ flex: 1 }}>
                   <Heading>{item.institutionName}</Heading>
                   <Muted>
-                    {item.source === 'mock' ? 'Mock / fixture' : 'Plaid'} · {item.products.join(', ')}
+                    {item.source === 'plaid' ? 'Linked (Plaid)' : 'Demo / fixture'} · {item.products.join(', ')}
                   </Muted>
                 </View>
               </Row>
