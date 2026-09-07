@@ -1,0 +1,329 @@
+import { currentMonthKey, shiftMonth } from '@/src/lib/dates';
+import type {
+  Account,
+  Category,
+  Debt,
+  FixedExpense,
+  IncomeSource,
+  MerchantRule,
+  Property,
+  RetirementAssumptions,
+  Transaction,
+} from '@/src/types';
+
+export const categories: Category[] = [
+  { id: 'cat_income', name: 'Paycheck', kind: 'income', icon: 'briefcase', color: '#0F8F6B' },
+  { id: 'cat_housing', name: 'Housing', kind: 'fixed', icon: 'home', color: '#3B6CB5' },
+  { id: 'cat_auto', name: 'Auto payment', kind: 'fixed', icon: 'car', color: '#5B6B8C' },
+  { id: 'cat_insurance', name: 'Insurance', kind: 'fixed', icon: 'shield', color: '#6B5B95' },
+  { id: 'cat_loans', name: 'Loan payment', kind: 'debt', icon: 'card', color: '#8C5B5B' },
+  { id: 'cat_utilities', name: 'Utilities', kind: 'fixed', icon: 'flash', color: '#B7791F' },
+  { id: 'cat_phone', name: 'Phone & internet', kind: 'fixed', icon: 'wifi', color: '#2F6FED' },
+  { id: 'cat_groceries', name: 'Groceries', kind: 'discretionary', icon: 'cart', color: '#2E8B57' },
+  { id: 'cat_dining', name: 'Dining', kind: 'discretionary', icon: 'restaurant', color: '#D97706' },
+  { id: 'cat_gas', name: 'Gas', kind: 'discretionary', icon: 'speedometer', color: '#0E7490' },
+  { id: 'cat_shopping', name: 'Shopping', kind: 'discretionary', icon: 'bag', color: '#7C3AED' },
+  { id: 'cat_subs', name: 'Subscriptions', kind: 'discretionary', icon: 'play', color: '#DB2777' },
+  { id: 'cat_health', name: 'Health', kind: 'discretionary', icon: 'medkit', color: '#DC2626' },
+  { id: 'cat_transfer', name: 'Transfer', kind: 'transfer', icon: 'swap-horizontal', color: '#64748B' },
+];
+
+export const accounts: Account[] = [
+  {
+    id: 'acct_checking',
+    name: 'Everyday Checking',
+    institution: 'Chase',
+    type: 'checking',
+    subtype: 'checking',
+    balance: 4820.44,
+    available: 4610.12,
+    mask: '4412',
+    plaidItemId: 'item_mock_chase',
+  },
+  {
+    id: 'acct_savings',
+    name: 'Online Savings',
+    institution: 'Ally',
+    type: 'savings',
+    subtype: 'savings',
+    balance: 18400,
+    available: 18400,
+    mask: '8821',
+    plaidItemId: 'item_mock_ally',
+  },
+  {
+    id: 'acct_amex',
+    name: 'Gold Card',
+    institution: 'American Express',
+    type: 'credit',
+    subtype: 'credit card',
+    balance: -1240.67,
+    mask: '1003',
+    plaidItemId: 'item_mock_amex',
+  },
+  {
+    id: 'acct_brokerage',
+    name: 'Brokerage',
+    institution: 'Fidelity',
+    type: 'investment',
+    subtype: 'brokerage',
+    balance: 86200,
+    mask: '7740',
+    plaidItemId: 'item_mock_fidelity',
+  },
+  {
+    id: 'acct_401k',
+    name: 'Workplace 401(k)',
+    institution: 'Fidelity',
+    type: 'retirement',
+    subtype: '401k',
+    balance: 214500,
+    mask: '1198',
+    plaidItemId: 'item_mock_fidelity',
+  },
+  {
+    id: 'acct_auto',
+    name: 'Auto Loan',
+    institution: 'Toyota Financial',
+    type: 'loan',
+    subtype: 'auto',
+    balance: -9800,
+    mask: '3301',
+    plaidItemId: 'item_mock_loans',
+  },
+  {
+    id: 'acct_student',
+    name: 'Student Loan',
+    institution: 'Nelnet',
+    type: 'loan',
+    subtype: 'student',
+    balance: -18200,
+    mask: '5520',
+    plaidItemId: 'item_mock_loans',
+  },
+];
+
+export const incomeSources: IncomeSource[] = [
+  { id: 'inc_salary', name: 'Take-home pay', monthlyAmount: 9200 },
+];
+
+export const fixedExpenses: FixedExpense[] = [
+  { id: 'fix_housing', name: 'Primary mortgage', monthlyAmount: 2100, categoryId: 'cat_housing' },
+  { id: 'fix_auto', name: 'Car payment', monthlyAmount: 480, categoryId: 'cat_auto' },
+  { id: 'fix_ins', name: 'Insurance', monthlyAmount: 265, categoryId: 'cat_insurance' },
+  { id: 'fix_student', name: 'Student loan', monthlyAmount: 340, categoryId: 'cat_loans' },
+  { id: 'fix_phone', name: 'Phone & internet', monthlyAmount: 95, categoryId: 'cat_phone' },
+  { id: 'fix_utils', name: 'Utilities', monthlyAmount: 185, categoryId: 'cat_utilities' },
+];
+
+export const debts: Debt[] = [
+  {
+    id: 'debt_amex',
+    name: 'Amex Gold',
+    kind: 'credit_card',
+    balance: 1240.67,
+    interestRate: 0.2199,
+    minimumPayment: 45,
+    accountId: 'acct_amex',
+  },
+  {
+    id: 'debt_auto',
+    name: 'Toyota RAV4',
+    kind: 'auto',
+    balance: 9800,
+    interestRate: 0.049,
+    minimumPayment: 480,
+    accountId: 'acct_auto',
+  },
+  {
+    id: 'debt_student',
+    name: 'Federal student loans',
+    kind: 'student',
+    balance: 18200,
+    interestRate: 0.045,
+    minimumPayment: 340,
+    accountId: 'acct_student',
+  },
+];
+
+export const merchantRules: MerchantRule[] = [
+  { id: 'rule_kroger', match: 'kroger', categoryId: 'cat_groceries' },
+  { id: 'rule_netflix', match: 'netflix', categoryId: 'cat_subs' },
+];
+
+export const retirement: RetirementAssumptions = {
+  currentAge: 34,
+  retirementAge: 65,
+  monthlyContribution: 800,
+  expectedReturn: 0.07,
+  targetNestEgg: 1800000,
+};
+
+export const properties: Property[] = [
+  {
+    id: 'prop_oak',
+    name: 'Oak Street duplex',
+    address: '418 Oak St, Columbus, OH',
+    occupancy: 'rental',
+    marketValue: 425000,
+    mortgageBalance: 268000,
+    mortgageRate: 0.061,
+    monthlyMortgagePayment: 1720,
+    monthlyRent: 3200,
+    monthlyExpenses: 850,
+    vacancyRate: 0.05,
+    purchasePrice: 360000,
+    purchaseDate: '2019-06-01',
+    units: 2,
+    tenants: [
+      {
+        id: 'ten_a',
+        name: 'Maya Chen',
+        unit: 'A',
+        leaseStart: '2025-03-01',
+        leaseEnd: '2026-02-28',
+        monthlyRent: 1600,
+        email: 'maya@example.com',
+        phone: '614-555-0142',
+        status: 'current',
+      },
+      {
+        id: 'ten_b',
+        name: 'Jordan Blake',
+        unit: 'B',
+        leaseStart: '2024-09-01',
+        leaseEnd: '2026-08-31',
+        monthlyRent: 1600,
+        phone: '614-555-0190',
+        status: 'current',
+      },
+    ],
+  },
+  {
+    id: 'prop_condo',
+    name: 'High Street condo',
+    address: '900 High St #4B, Columbus, OH',
+    occupancy: 'rental',
+    marketValue: 215000,
+    mortgageBalance: 142000,
+    mortgageRate: 0.0675,
+    monthlyMortgagePayment: 980,
+    monthlyRent: 1650,
+    monthlyExpenses: 420,
+    vacancyRate: 0.08,
+    purchasePrice: 189000,
+    purchaseDate: '2021-04-15',
+    units: 1,
+    tenants: [
+      {
+        id: 'ten_vacant',
+        name: 'Vacant',
+        unit: '4B',
+        monthlyRent: 0,
+        status: 'vacant',
+      },
+    ],
+  },
+  {
+    id: 'prop_home',
+    name: 'Primary home',
+    address: '22 Maple Ave, Westerville, OH',
+    occupancy: 'owner',
+    marketValue: 510000,
+    mortgageBalance: 312000,
+    mortgageRate: 0.055,
+    monthlyMortgagePayment: 2100,
+    monthlyRent: 0,
+    monthlyExpenses: 240,
+    vacancyRate: 0,
+    purchasePrice: 445000,
+    purchaseDate: '2018-08-10',
+    units: 1,
+    tenants: [],
+  },
+];
+
+function txn(
+  id: string,
+  accountId: string,
+  day: string,
+  merchant: string,
+  amount: number,
+  categoryId: string,
+  extras: Partial<Transaction> = {},
+): Transaction {
+  return {
+    id,
+    accountId,
+    date: day,
+    merchant,
+    amount,
+    categoryId,
+    pending: false,
+    isTransfer: categoryId === 'cat_transfer',
+    ...extras,
+  };
+}
+
+export function buildDemoTransactions(month = currentMonthKey()): Transaction[] {
+  const prior = shiftMonth(month, -1);
+  return [
+    txn('txn_pay_1', 'acct_checking', `${month}-01`, 'Acme Corp payroll', 4600, 'cat_income'),
+    txn('txn_pay_2', 'acct_checking', `${month}-15`, 'Acme Corp payroll', 4600, 'cat_income'),
+    txn('txn_mortgage', 'acct_checking', `${month}-03`, 'Rocket Mortgage', -2100, 'cat_housing'),
+    txn('txn_auto', 'acct_checking', `${month}-05`, 'Toyota Financial', -480, 'cat_auto'),
+    txn('txn_ins', 'acct_checking', `${month}-07`, 'State Farm', -265, 'cat_insurance'),
+    txn('txn_student', 'acct_checking', `${month}-08`, 'Nelnet', -340, 'cat_loans'),
+    txn('txn_phone', 'acct_checking', `${month}-10`, 'T-Mobile', -95, 'cat_phone'),
+    txn('txn_aep', 'acct_checking', `${month}-12`, 'AEP Ohio', -118.42, 'cat_utilities'),
+    txn('txn_gas_util', 'acct_checking', `${month}-12`, 'Columbia Gas', -54.2, 'cat_utilities'),
+    txn('txn_kroger_1', 'acct_amex', `${month}-04`, 'Kroger', -142.88, 'cat_groceries'),
+    txn('txn_kroger_2', 'acct_amex', `${month}-18`, 'Kroger', -96.4, 'cat_groceries'),
+    txn('txn_dining_1', 'acct_amex', `${month}-06`, 'Northstar Cafe', -48.2, 'cat_dining'),
+    txn('txn_dining_2', 'acct_amex', `${month}-14`, 'Condado Tacos', -36.5, 'cat_dining'),
+    txn('txn_dining_3', 'acct_amex', `${month}-21`, 'Starbucks', -7.85, 'cat_dining'),
+    txn('txn_shell', 'acct_amex', `${month}-09`, 'Shell', -51.3, 'cat_gas'),
+    txn('txn_target', 'acct_amex', `${month}-16`, 'Target', -84.12, 'cat_shopping'),
+    txn('txn_netflix', 'acct_amex', `${month}-11`, 'Netflix', -15.49, 'cat_subs'),
+    txn('txn_spotify', 'acct_amex', `${month}-11`, 'Spotify', -11.99, 'cat_subs'),
+    txn('txn_rx', 'acct_amex', `${month}-19`, 'CVS Pharmacy', -28.4, 'cat_health'),
+    txn('txn_cc_pay', 'acct_checking', `${month}-20`, 'Amex payment', -890, 'cat_transfer', {
+      isTransfer: true,
+    }),
+    txn('txn_401k', 'acct_checking', `${month}-15`, 'Fidelity 401(k)', -800, 'cat_transfer', {
+      isTransfer: true,
+    }),
+    txn('txn_save', 'acct_checking', `${month}-16`, 'Ally transfer', -500, 'cat_transfer', {
+      isTransfer: true,
+    }),
+    txn('txn_prior_pay', 'acct_checking', `${prior}-15`, 'Acme Corp payroll', 4600, 'cat_income'),
+    txn('txn_prior_groc', 'acct_amex', `${prior}-22`, 'Kroger', -121.1, 'cat_groceries'),
+  ];
+}
+
+export const demoPlaidItems = [
+  {
+    id: 'item_mock_chase',
+    institutionName: 'Chase',
+    itemId: 'item_mock_chase',
+    products: ['transactions'],
+    connectedAt: '2026-01-12T15:00:00.000Z',
+    source: 'mock' as const,
+  },
+  {
+    id: 'item_mock_fidelity',
+    institutionName: 'Fidelity',
+    itemId: 'item_mock_fidelity',
+    products: ['investments'],
+    connectedAt: '2026-01-12T15:00:00.000Z',
+    source: 'mock' as const,
+  },
+  {
+    id: 'item_mock_loans',
+    institutionName: 'Toyota Financial / Nelnet',
+    itemId: 'item_mock_loans',
+    products: ['liabilities'],
+    connectedAt: '2026-01-12T15:00:00.000Z',
+    source: 'mock' as const,
+  },
+];
