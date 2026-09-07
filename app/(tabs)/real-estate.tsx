@@ -62,6 +62,14 @@ export default function RealEstateScreen() {
                   : `${metrics.occupiedUnits}/${property.units} occupied`}
               </Muted>
             </Row>
+            {property.lastEstimate ? (
+              <Muted>
+                Est. {formatMoney(property.lastEstimate.estimatedValue)}
+                {property.lastEstimate.mock ? ' · mock' : ''} · {property.lastEstimate.source}
+              </Muted>
+            ) : (
+              <Muted>No estimate yet — open the property to look one up.</Muted>
+            )}
             {property.occupancy === 'rental' ? (
               <View style={{ gap: 6 }}>
                 <SectionLabel>Yield</SectionLabel>

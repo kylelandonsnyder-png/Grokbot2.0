@@ -20,6 +20,7 @@ import { notifyNewTransactions } from '@/src/lib/notifications';
 import type {
   Account,
   AppSettings,
+  AppSnapshot,
   Category,
   Debt,
   FixedExpense,
@@ -71,6 +72,8 @@ interface AppState {
   }) => Promise<number>;
   markTransactionsSeen: () => void;
   setNotificationsEnabled: (enabled: boolean) => void;
+  replaceSnapshot: (snapshot: AppSnapshot) => void;
+  applyPropertyEstimate: (propertyId: string, marketValue?: number) => void;
 }
 
 const emptySettings: AppSettings = {
@@ -243,9 +246,34 @@ export const useAppStore = create<AppState>()(
         }),
       setNotificationsEnabled: (enabled) =>
         set({ settings: { ...get().settings, notificationsEnabled: enabled } }),
+      replaceSnapshot: (snapshot) =>
+        set({
+          accounts: snapshot.accounts,
+          transactions: snapshot.transactions,
+          categories: snapshot.categories,
+          merchantRules: snapshot.merchantRules,
+          incomeSources: snapshot.incomeSources,
+          fixedExpenses: snapshot.fixedExpenses,
+          debts: snapshot.debts,
+          properties: snapshot.properties,
+          retirement: snapshot.retirement,
+          plaidItems: snapshot.plaidItems,
+          settings: snapshot.settings,
+        }),
+      applyPropertyEstimate: (propertyId, marketValue) =>
+        set({
+          properties: get().properties.map((property) =>
+            property.id === propertyId
+              ? {
+                  ...property,
+                  marketValue: marketValue ?? property.lastEstimate?.estimatedValue ?? property.marketValue,
+                }
+              : property,
+          ),
+        }),
     }),
     {
-      name: 'grokbot-local-v1',
+      name: 'grokbot-local-v2',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         accounts: state.accounts,

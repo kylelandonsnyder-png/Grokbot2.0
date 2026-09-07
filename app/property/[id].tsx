@@ -20,6 +20,7 @@ import { useTheme } from '@/src/hooks/useTheme';
 import { createId } from '@/src/lib/ids';
 import { formatMoney, formatPercent } from '@/src/lib/money';
 import { computePropertyMetrics } from '@/src/lib/realEstate';
+import { fetchPropertyValuation } from '@/src/lib/valuation';
 import { useAppStore } from '@/src/store/appStore';
 import type { Tenant } from '@/src/types';
 
@@ -30,7 +31,10 @@ export default function PropertyDetailScreen() {
   const upsertTenant = useAppStore((state) => state.upsertTenant);
   const removeTenant = useAppStore((state) => state.removeTenant);
   const removeProperty = useAppStore((state) => state.removeProperty);
+  const upsertProperty = useAppStore((state) => state.upsertProperty);
+  const applyPropertyEstimate = useAppStore((state) => state.applyPropertyEstimate);
   const [editing, setEditing] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
   const [tenantName, setTenantName] = useState('');
   const [tenantUnit, setTenantUnit] = useState('');
   const [tenantRent, setTenantRent] = useState('');
@@ -75,9 +79,42 @@ export default function PropertyDetailScreen() {
           <Heading>{property.name}</Heading>
           <Muted>{property.address}</Muted>
           <Row>
-            <Muted>Market value</Muted>
+            <Muted>Market value (used in math)</Muted>
             <MoneyText value={property.marketValue} size={18} />
           </Row>
+          {property.lastEstimate ? (
+            <Row>
+              <Muted>
+                {property.lastEstimate.source}
+                {property.lastEstimate.mock ? ' · mock' : ''} ·{' '}
+                {property.lastEstimate.fetchedAt.slice(0, 10)}
+              </Muted>
+              <Muted>{formatMoney(property.lastEstimate.estimatedValue)}</Muted>
+            </Row>
+          ) : (
+            <Muted>No AVM estimate yet. Look up a RentCast (or mock) value from the address.</Muted>
+          )}
+          <PrimaryButton
+            label={refreshing ? 'Refreshing…' : 'Refresh estimate'}
+            onPress={async () => {
+              setRefreshing(true);
+              try {
+                const next = await fetchPropertyValuation(property.address);
+                upsertProperty({ ...property, lastEstimate: next });
+              } catch (error) {
+                Alert.alert('Lookup failed', error instanceof Error ? error.message : 'Unknown error');
+              } finally {
+                setRefreshing(false);
+              }
+            }}
+            disabled={refreshing}
+          />
+          {property.lastEstimate ? (
+            <GhostButton
+              label="Use estimate as market value"
+              onPress={() => applyPropertyEstimate(property.id)}
+            />
+          ) : null}
           <Row>
             <Muted>Mortgage</Muted>
             <MoneyText value={-property.mortgageBalance} size={16} color={theme.danger} />

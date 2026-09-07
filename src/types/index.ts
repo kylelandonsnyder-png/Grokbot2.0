@@ -91,6 +91,16 @@ export interface Tenant {
   status: 'current' | 'notice' | 'vacant';
 }
 
+export interface PropertyValuation {
+  estimatedValue: number;
+  rangeLow?: number;
+  rangeHigh?: number;
+  source: string;
+  fetchedAt: string;
+  addressQueried: string;
+  mock: boolean;
+}
+
 export interface Property {
   id: string;
   name: string;
@@ -107,6 +117,7 @@ export interface Property {
   purchaseDate?: string;
   units: number;
   tenants: Tenant[];
+  lastEstimate?: PropertyValuation;
 }
 
 export interface RetirementAssumptions {

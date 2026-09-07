@@ -174,6 +174,15 @@ export const properties: Property[] = [
     vacancyRate: 0.05,
     purchasePrice: 360000,
     purchaseDate: '2019-06-01',
+    lastEstimate: {
+      estimatedValue: 431000,
+      rangeLow: 397000,
+      rangeHigh: 465000,
+      source: 'RentCast (mock)',
+      fetchedAt: '2026-09-01T12:00:00.000Z',
+      addressQueried: '418 Oak St, Columbus, OH',
+      mock: true,
+    },
     units: 2,
     tenants: [
       {
@@ -213,6 +222,15 @@ export const properties: Property[] = [
     vacancyRate: 0.08,
     purchasePrice: 189000,
     purchaseDate: '2021-04-15',
+    lastEstimate: {
+      estimatedValue: 219000,
+      rangeLow: 201000,
+      rangeHigh: 237000,
+      source: 'RentCast (mock)',
+      fetchedAt: '2026-09-01T12:00:00.000Z',
+      addressQueried: '900 High St #4B, Columbus, OH',
+      mock: true,
+    },
     units: 1,
     tenants: [
       {
@@ -238,6 +256,15 @@ export const properties: Property[] = [
     vacancyRate: 0,
     purchasePrice: 445000,
     purchaseDate: '2018-08-10',
+    lastEstimate: {
+      estimatedValue: 522000,
+      rangeLow: 480000,
+      rangeHigh: 564000,
+      source: 'RentCast (mock)',
+      fetchedAt: '2026-09-01T12:00:00.000Z',
+      addressQueried: '22 Maple Ave, Westerville, OH',
+      mock: true,
+    },
     units: 1,
     tenants: [],
   },
