@@ -222,6 +222,15 @@ export const properties: Property[] = [
     vacancyRate: 0.08,
     purchasePrice: 189000,
     purchaseDate: '2021-04-15',
+    lastEstimate: {
+      estimatedValue: 219000,
+      rangeLow: 201000,
+      rangeHigh: 237000,
+      source: 'RentCast (mock)',
+      fetchedAt: '2026-09-01T12:00:00.000Z',
+      addressQueried: '900 High St #4B, Columbus, OH',
+      mock: true,
+    },
     units: 1,
     tenants: [
       {

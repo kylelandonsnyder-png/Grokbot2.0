@@ -273,7 +273,7 @@ export const useAppStore = create<AppState>()(
         }),
     }),
     {
-      name: 'grokbot-local-v1',
+      name: 'grokbot-local-v2',
       storage: createJSONStorage(() => AsyncStorage),
       partialize: (state) => ({
         accounts: state.accounts,
